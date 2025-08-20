@@ -1,0 +1,8 @@
+logs/
+run/
+tmp/
+env/*.env
+env/*.secret
+__pycache__/
+*.pyc
+*.swp
