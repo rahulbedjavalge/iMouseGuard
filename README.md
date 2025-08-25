@@ -1,7 +1,3 @@
-Here’s a drop-in **README.md** you can copy/paste into your repo. It’s written so a new person can set up iMouseGuard quickly and understand how it fits together.
-
----
-
 # iMouseGuard
 
 Lightweight alerting layer on top of ZoneMinder’s Event Server (ES).
