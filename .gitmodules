@@ -1,0 +1,3 @@
+[submodule "zmeventnotification"]
+	path = zmeventnotification
+	url = https://github.com/pliablepixels/zmeventnotification.git
