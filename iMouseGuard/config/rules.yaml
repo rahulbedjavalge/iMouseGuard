@@ -1,24 +1,19 @@
-cat > /opt/iMouseGuard/config/rules.yaml <<'YAML'
 ws_url: "ws://127.0.0.1:9000"
 
 telegram:
   chat_id: "7365803204"
   thread_id: ""   # leave empty unless you use a Telegram topic
 
+ws_url: "ws://127.0.0.1:9000"
+suppress_minutes: 30
+
 monitors:
   "21":
-    name: "H* (Monitor 21)"
+    name: "MouseCam-21"
     zones:
       litter:
-        keyword: "LitterBox"
+        keyword: "Litter"          # must be a substring of the ES “cause” zone-name
         max_inactive_minutes: 60
       drink:
-        keyword: "WaterBottle"
+        keyword: "Drink"           # or "Water"
         max_inactive_minutes: 45
-
-suppress_minutes: 30
-quiet_hours:
-  enable: false
-  start: "22:00"
-  end: "07:00"
-YAML
