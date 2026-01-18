@@ -1,0 +1,34 @@
+# Environment & Secrets
+env/prod.env
+.env
+.env.local
+*.pem
+*.key
+secrets.ini
+
+# Logs
+logs/
+*.log
+
+# State & Cache
+state/
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp
+tmp/
+*.tmp
