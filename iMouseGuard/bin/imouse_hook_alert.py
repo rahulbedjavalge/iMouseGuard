@@ -13,8 +13,12 @@ Sends a Telegram message to a group topic.
 import sys, os, json, time
 import urllib.parse, urllib.request
 
+#from wasabi import msg
+
 # ---------- utils ----------
-ENV_FILES = ("/opt/iMouseGuard/env/prod.env",)
+ENV_FILES = (
+    #"/opt/iMouseGuard/env/prod.env",
+    "D:\\iMouseGuard\\iMouseGuard\\env\\prod.env",)
 
 def _clean(val: str) -> str:
     if val is None:
@@ -81,6 +85,45 @@ def send_telegram(text: str, retries: int = 2) -> None:
                 return
             time.sleep(backoff)
             backoff *= 2
+            
+def send_slack(text: str, retries: int = 2) -> None:
+    webhook = get_env("SLACK_WEBHOOK_URL").strip()
+
+    if not webhook:
+        log_err("SLACK_WEBHOOK_URL missing")
+        return
+
+    if not webhook.startswith("https://hooks.slack.com/services/"):
+        log_err("SLACK_WEBHOOK_URL looks invalid (must start with https://hooks.slack.com/services/...)")
+        return
+
+    payload = json.dumps({"text": text}).encode("utf-8")
+
+    backoff = 0.7
+    for attempt in range(retries + 1):
+        try:
+            req = urllib.request.Request(
+                webhook,
+                data=payload,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                body = resp.read().decode("utf-8", "ignore").strip()
+                # Slack often returns "ok" on success
+                if resp.status == 200 and (body == "" or body.lower() == "ok"):
+                    log_err("[SLACK] sent ok")
+                    return
+
+                log_err(f"[SLACK] HTTP {resp.status}, body={body}")
+                return
+        except Exception as e:
+            if attempt >= retries:
+                log_err(f"[SLACK] send failed: {e}")
+                return
+            time.sleep(backoff)
+            backoff *= 2
+
 
 # ---------- enrichment ----------
 def fetch_event(eid: str):
@@ -139,8 +182,10 @@ def main() -> int:
 
     behavior = str(body.get("behavior", "") or "zm_event")
     notes    = str(body.get("notes", "") or "")
-    ev = fetch_event(eid) if eid else {}
-    mon_name = fetch_monitor_name(mid) if mid else ""
+    #ev = fetch_event(eid) if eid else {}
+    ev = {}
+    #mon_name = fetch_monitor_name(mid) if mid else ""
+    mon_name = ""
     cause = ev.get("Cause") or notes
     zone  = guess_zone_from_cause(cause)
 
@@ -166,7 +211,10 @@ def main() -> int:
     if eid:
         lines.append(f"View: {event_link(eid)}")
 
-    send_telegram("\n".join(lines))
+    msg = "\n".join(lines)
+    send_telegram(msg)
+    send_slack(msg)
+
     return 0
 
 if __name__ == "__main__":

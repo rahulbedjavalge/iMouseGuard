@@ -27,6 +27,30 @@ ZoneMinder (API + ES:9000)
                                  Telegram Bot
 ```
 
+### Architecture (detailed flow)
+
+```
+┌─────────────────────────────── ZoneMinder ────────────────────────────────┐
+│ Cameras → Events → Event Server (ES:9000 WebSocket)                      │
+└──────────────────────────────────────────────────────────────────────────┘
+            │ ws://…/9000
+            ▼
+      zmes_ws_to_telegram.py (forwarder)
+      - maintains WS connection
+      - deduplicates event IDs
+      - spawns hook subprocess per event
+            │ argv: eid, mid
+            │ stdin: {behavior, notes, monitor_name}
+            ▼
+         imouse_hook_alert.py (hook)
+         - fetches ZM API details (event + monitor)
+         - formats alert text
+         - posts to Telegram (optional thread/topic)
+            │ HTTPS
+            ▼
+       Telegram Bot API → Your chat/topic
+```
+
 ---
 
 ## Folder layout
@@ -47,8 +71,8 @@ ZoneMinder (API + ES:9000)
 │  ├─ es.log
 │  ├─ forwarder.log
 │  └─ guard.log
-├─ vendor/
-│  └─ zmeventnotification/  # ES source (perl script + docs)
+├
+├─ zmeventnotification/  # ES source (perl script + docs)
 └─ venv/                    # python virtual environment
 ```
 
@@ -283,5 +307,54 @@ rm -rf /opt/iMouseGuard
 
 ---
 
-If you want, I can also generate a minimal `es-start`, `fwd-start`, and `guard-watch` for your repo so this README exactly matches your files.
 
+📂 Folder & File Permissions for iMouseGuard
+1. Top-level folder
+
+Path: /opt/iMouseGuard
+
+Owner: root:root (or a dedicated imouse user if you want to isolate)
+
+Mode: 750 (rwx for owner, rx for group, no access for others)
+
+chown -R root:root /opt/iMouseGuard
+chmod 750 /opt/iMouseGuard
+
+2. Subfolders
+Folder	Purpose	Mode
+bin/	scripts & executables	750
+config/	INI, YAML configs	640
+env/	prod.env with tokens	600 (strict)
+logs/	runtime logs	750 (so only owner & group can read/write)
+state/	last_seen.json etc.	750
+var/	runtime tmp, push tokens	750
+3. Files
+File type	Example	Mode	Notes
+Executables	bin/imouse_hook_alert.py	755	executable by system/service
+Configs	config/zmes_ws_only.ini	640	only owner+group can read
+Env vars	env/prod.env	600	secrets: bot token, chat id
+Logs	logs/es.log	640	optional: 644 if you want world-readable
+State files	state/last_seen.json	640	
+4. Commands (safe defaults)
+# bin scripts executable
+chmod 755 /opt/iMouseGuard/bin/*
+
+# configs readable by group
+chmod 640 /opt/iMouseGuard/config/*
+
+# env file strictly protected
+chmod 600 /opt/iMouseGuard/env/prod.env
+
+# logs and state writeable
+chmod 750 /opt/iMouseGuard/logs /opt/iMouseGuard/state /opt/iMouseGuard/var
+chmod 640 /opt/iMouseGuard/logs/* /opt/iMouseGuard/state/* 2>/dev/null || true
+
+5. Why not 777 or 644?
+
+777 → anyone can tamper/run maliciously.
+
+644 on secrets → leaks tokens.
+
+600 on prod.env ensures only root (or the service account) can read Telegram tokens & DB creds.
+
+755 on scripts ensures they’re executable but not writable by others.

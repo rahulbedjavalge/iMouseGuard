@@ -76,6 +76,44 @@ def send_telegram(text, topic=None):
     except Exception as e:
         log("telegram error:", e)
 
+def send_whatsapp(text):
+    """Send WhatsApp alert via whatsapp_call.py if enabled."""
+    enabled = get_env("ENABLE_WHATSAPP") == "1"
+    if not enabled:
+        return
+    
+    import subprocess
+    # Determine paths based on OS
+    if os.name == 'nt':  # Windows
+        python_exe = "D:/iMouseGuard/.venv/Scripts/python.exe"
+        script_path = "d:\\iMouseGuard\\iMouseGuard\\bin\\whatsapp_call.py"
+    else:  # Linux/Unix
+        python_exe = "/opt/iMouseGuard/venv/bin/python"
+        script_path = "/opt/iMouseGuard/bin/whatsapp_call.py"
+    
+    # Build environment with required variables
+    env = os.environ.copy()
+    env["ENABLE_WHATSAPP"] = "1"
+    for key in ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_WHATSAPP_FROM", "WHATSAPP_TO"]:
+        val = get_env(key)
+        if val:
+            env[key] = val
+    
+    try:
+        p = subprocess.Popen(
+            [python_exe, script_path],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=env
+        )
+        payload = json.dumps({"message": text})
+        stdout, stderr = p.communicate(input=payload.encode("utf-8"), timeout=10)
+        if p.returncode != 0:
+            log(f"whatsapp failed (rc={p.returncode}):", stderr.decode()[:200])
+    except Exception as e:
+        log("whatsapp error:", e)
+
 # ---------------- state ----------------
 
 def load_state():
@@ -188,6 +226,7 @@ class Engine:
                             text  = self._alert_text(mname, mid, zname, idle, max_idle)
                             topic = self._topic_for_zone(zname)
                             send_telegram(text, topic=topic)
+                            send_whatsapp(text)
                             self.mark_alert(key)
                 time.sleep(60)
             except Exception as e:
@@ -260,6 +299,7 @@ def one_shot_check(cfg):
                 text  = eng._alert_text(mname, mid, zname, idle, max_idle)
                 topic = eng._topic_for_zone(zname)
                 send_telegram(text, topic=topic)
+                send_whatsapp(text)
                 eng.mark_alert(key)
                 log("ONE-SHOT alerted:", text)
 
