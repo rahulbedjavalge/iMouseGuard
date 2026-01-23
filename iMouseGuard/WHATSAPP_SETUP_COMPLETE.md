@@ -48,7 +48,7 @@ echo '{"template_sid":"HX350d429d32e64a552466cafecbe95f3c","variables":{"1":"12/
 | **Twilio Account SID** | YOUR_SID_HERE |
 | **Twilio Auth Token** | YOUR_TOKEN_HERE |
 | **WhatsApp From** | whatsapp:+14155238886 (Twilio Sandbox) |
-| **WhatsApp To** | whatsapp:+4915560375039 (Recipient) |
+| **WhatsApp To** | whatsapp:+49 (Recipient) |
 | **Template SID** | HX350d429d32e64a552466cafecbe95f3c |
 | **Status** | ✅ ENABLED |
 
