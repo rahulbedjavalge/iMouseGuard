@@ -26,8 +26,8 @@ Edit `/opt/iMouseGuard/env/prod.env` and set:
 export ENABLE_WHATSAPP="1"
 
 # Twilio API credentials (from Twilio dashboard)
-export TWILIO_ACCOUNT_SID="ACf0ba30623581e771fed04b68edc95aa4"
-export TWILIO_AUTH_TOKEN="your_auth_token_here"
+export TWILIO_ACCOUNT_SID="YOUR_SID_HERE"
+export TWILIO_AUTH_TOKEN="YOUR_TOKEN_HERE"
 
 # WhatsApp numbers in E.164 format
 export TWILIO_WHATSAPP_FROM="whatsapp:+14155238886"     # Twilio sandbox number
@@ -68,36 +68,17 @@ echo '{"message":"Alert: Motion detected in zone A"}' | \
 
 ```bash
 echo '{
-  "template_sid": "HX350d429d32e64a552466cafecbe95f3c",
+  "template_sid": "YOUR_TEMPLATE_SID",
   "variables": {
-    "1": "12/1",
-    "2": "3pm"
+    "1": "value1",
+    "2": "value2"
   }
 }' | /opt/iMouseGuard/bin/whatsapp_call.py
 ```
 
 ### Integration with ZoneMinder Events
 
-Edit `zmes_ws_to_telegram.py` to call WhatsApp in addition to/instead of Telegram:
-
-```python
-def run_hook(eid, mid, payload):
-    # Telegram hook
-    subprocess.Popen(["/opt/iMouseGuard/bin/imouse_hook_alert.py", str(eid), str(mid)], 
-                    stdin=subprocess.PIPE,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE)
-    
-    # WhatsApp hook (optional)
-    whatsapp_payload = {
-        "message": f"🐭 Event {eid} on Monitor {mid}"
-    }
-    subprocess.Popen(["/opt/iMouseGuard/bin/whatsapp_call.py"],
-                    stdin=subprocess.PIPE,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE)
-    p.communicate(input=json.dumps(whatsapp_payload).encode("utf-8"))
-```
+When Event Server sends payload to `imouse_hook_alert.py`, it automatically sends to both Telegram and WhatsApp.
 
 ## Features
 
@@ -106,7 +87,11 @@ def run_hook(eid, mid, payload):
 - ✅ Graceful error handling and logging
 - ✅ Environment variable support (prod.env)
 - ✅ Integration with hook system
+<<<<<<< HEAD
 - ✅ Retries and timeout handling
+=======
+- ✅ Works on both Windows and Linux
+>>>>>>> bbf04ca1fc5d8eb15f0b196c5d8bc2a8c8a71717
 
 ## Troubleshooting
 
@@ -125,11 +110,8 @@ def run_hook(eid, mid, payload):
 1. Verify recipient number is joined to Twilio sandbox
 2. Check Twilio dashboard for API errors
 3. Ensure Twilio account has WhatsApp enabled
-4. Check logs: `tail -f /opt/iMouseGuard/logs/forwarder.log`
-
-## Twilio Sandbox Setup
-
-1. Go to https://console.twilio.com/conversations/sms-integration/whatsapp
+- ✅ Retries and timeout handling
+- ✅ Works on both Windows and Linuxs/sms-integration/whatsapp
 2. Join the sandbox with the provided template message
 3. Use the provided `whatsapp:+...` number as `TWILIO_WHATSAPP_FROM`
 4. Recipients must join the sandbox before receiving messages

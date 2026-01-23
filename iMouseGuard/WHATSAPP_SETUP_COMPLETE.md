@@ -7,11 +7,11 @@ The following Twilio credentials and WhatsApp configuration have been added to [
 ```bash
 # Twilio WhatsApp integration
 export ENABLE_WHATSAPP="1"
-export TWILIO_ACCOUNT_SID="ACf0ba30623581e771fed04b68edc95aa4"
-export TWILIO_AUTH_TOKEN="7ee3fe39d775b879c710b34b25f6213a"
+export TWILIO_ACCOUNT_SID="YOUR_SID_HERE"
+export TWILIO_AUTH_TOKEN="YOUR_TOKEN_HERE"
 export TWILIO_WHATSAPP_FROM="whatsapp:+14155238886"
-export WHATSAPP_TO="whatsapp:+4915560375039"
-export TWILIO_WHATSAPP_CONTENT_SID="HX350d429d32e64a552466cafecbe95f3c"
+export WHATSAPP_TO="whatsapp:+YOUR_NUMBER_HERE"
+export TWILIO_WHATSAPP_CONTENT_SID="YOUR_TEMPLATE_SID_HERE"
 ```
 
 ## Test Results ✅
@@ -45,8 +45,8 @@ echo '{"template_sid":"HX350d429d32e64a552466cafecbe95f3c","variables":{"1":"12/
 
 | Setting | Value |
 |---------|-------|
-| **Twilio Account SID** | ACf0ba30623581e771fed04b68edc95aa4 |
-| **Twilio Auth Token** | 7ee3fe39d775b879c710b34b25f6213a |
+| **Twilio Account SID** | YOUR_SID_HERE |
+| **Twilio Auth Token** | YOUR_TOKEN_HERE |
 | **WhatsApp From** | whatsapp:+14155238886 (Twilio Sandbox) |
 | **WhatsApp To** | whatsapp:+4915560375039 (Recipient) |
 | **Template SID** | HX350d429d32e64a552466cafecbe95f3c |

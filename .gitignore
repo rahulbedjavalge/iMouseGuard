@@ -28,17 +28,14 @@ env.bak/
 venv.bak/
 .venv/
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
 # Environment & Secrets
-*.env
-prod.env
+env/prod.env
+.env
+.env.local
+*.pem
+*.key
 secrets.ini
+prod.env
 *.ini.local
 
 # Logs
@@ -46,9 +43,23 @@ logs/
 *.log
 *.log.*
 
-# State & Temporary Files
+# State & Cache
 state/
 tmp/
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary Files
 *.tmp
 *.bak
 *.orig
