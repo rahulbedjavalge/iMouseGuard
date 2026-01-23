@@ -31,7 +31,7 @@ export TWILIO_AUTH_TOKEN="YOUR_TOKEN_HERE"
 
 # WhatsApp numbers in E.164 format
 export TWILIO_WHATSAPP_FROM="whatsapp:+14155238886"     # Twilio sandbox number
-export WHATSAPP_TO="whatsapp:+4915560375039"             # Recipient number
+export WHATSAPP_TO="whatsapp:+49"             # Recipient number
 ```
 
 ### 3. Verify Configuration
