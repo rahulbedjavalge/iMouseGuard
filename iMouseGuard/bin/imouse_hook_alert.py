@@ -9,7 +9,7 @@ Reads JSON on stdin and argv:
 Enriches the alert by calling ZoneMinder API for event and monitor details.
 Sends a Telegram message to a group topic.
 """
-
+import base64
 import sys, os, json, time
 import urllib.parse, urllib.request
 
@@ -123,6 +123,54 @@ def send_slack(text: str, retries: int = 2) -> None:
                 return
             time.sleep(backoff)
             backoff *= 2
+            
+def send_whatsapp(text: str, retries: int = 2) -> None:
+    # Toggle
+    enabled = get_env("WHATSAPP_ENABLED").lower() in ("1", "true", "yes", "on")
+    if not enabled:
+        return
+
+    sid   = get_env("TWILIO_ACCOUNT_SID")
+    token = get_env("TWILIO_AUTH_TOKEN")
+    wa_from = get_env("WHATSAPP_FROM")  # ex: "whatsapp:+14155238886" (sandbox)
+    wa_to   = get_env("WHATSAPP_TO")    # ex: "whatsapp:+49176...,whatsapp:+49157..."
+
+    if not sid or not token or not wa_from or not wa_to:
+        log_err("WhatsApp missing env: TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / WHATSAPP_FROM / WHATSAPP_TO")
+        return
+
+    url = f"https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json"  # Twilio Messaging API :contentReference[oaicite:2]{index=2}
+    auth = base64.b64encode(f"{sid}:{token}".encode("utf-8")).decode("ascii")
+    headers = {
+        "Authorization": f"Basic {auth}",
+        "Content-Type": "application/x-www-form-urlencoded",
+    }
+
+    recipients = [r.strip() for r in wa_to.split(",") if r.strip()]
+    if not recipients:
+        log_err("WHATSAPP_TO is empty")
+        return
+
+    backoff = 0.7
+    for to in recipients:
+        data = urllib.parse.urlencode({"From": wa_from, "To": to, "Body": text}).encode("utf-8")
+        req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+
+        for attempt in range(retries + 1):
+            try:
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    body = resp.read().decode("utf-8", "ignore").strip()
+                    if 200 <= resp.status < 300:
+                        log_err(f"[WHATSAPP] sent ok to {to}")
+                        break
+                    log_err(f"[WHATSAPP] HTTP {resp.status} to {to}, body={body}")
+                    break
+            except Exception as e:
+                if attempt >= retries:
+                    log_err(f"[WHATSAPP] send failed to {to}: {e}")
+                    break
+                time.sleep(backoff)
+                backoff *= 2
 
 
 # ---------- enrichment ----------
@@ -214,6 +262,7 @@ def main() -> int:
     msg = "\n".join(lines)
     send_telegram(msg)
     send_slack(msg)
+    send_whatsapp(msg)
 
     return 0
 
