@@ -21,16 +21,34 @@ def parse_events(data):
     ev = data.get("events", []) or data.get("Events", []) or data.get("items", []) or []
     if isinstance(ev, dict):
         ev = [ev]
+
     for obj in ev:
-        eid = (obj.get("eid") or obj.get("event_id") or obj.get("eventId")
-               or obj.get("EventID") or data.get("eid") or data.get("event_id"))
-        mid = (obj.get("mid") or obj.get("monitor_id") or obj.get("monitorId")
-               or obj.get("MonitorID") or data.get("mid") or data.get("monitor_id"))
-        cause = obj.get("cause") or data.get("cause") or ""
-        name  = obj.get("name") or obj.get("Name") or data.get("name") or ""
+        eid = (
+            obj.get("eid")
+            or obj.get("event_id")
+            or obj.get("eventId")
+            or obj.get("EventId")
+            or obj.get("EventID")
+            or obj.get("EventID".lower())
+            or data.get("eid")
+            or data.get("event_id")
+        )
+        mid = (
+            obj.get("mid")
+            or obj.get("monitor_id")
+            or obj.get("monitorId")
+            or obj.get("MonitorId")
+            or obj.get("MonitorID")
+            or data.get("mid")
+            or data.get("monitor_id")
+        )
+        cause = obj.get("cause") or obj.get("Cause") or data.get("cause") or data.get("Cause") or ""
+        name = obj.get("name") or obj.get("Name") or data.get("name") or data.get("Name") or ""
+
         if eid and mid:
             out.append({"eid": str(eid), "mid": str(mid), "cause": cause, "name": name})
     return out
+
 
 def try_subscriptions(ws):
     """
