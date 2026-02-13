@@ -1,120 +1,157 @@
 #!/usr/bin/env python3
-import os, json, time, subprocess
+import os
+import json
+import time
+import subprocess
 from websocket import create_connection
 
+# ===========================
+# CONFIG
+# ===========================
+
 WS_URL = os.getenv("WS_URL", "ws://127.0.0.1:9000")
-HOOK = "/opt/iMouseGuard/bin/imouse_hook_alert.py"
+HOOK = "/opt/iMouseGuard/iMouseGuard/bin/imouse_hook_alert.py"
 DEBUG = os.getenv("IMOUSE_WS_DEBUG", "0") == "1"
 
-def log(*a):
-    print(time.strftime("%Y-%m-%d %H:%M:%S"), "|", *a, flush=True)
+# Monitor filter (comma separated: 18,19)
+ALLOWED_MONITORS = os.getenv("IMOUSE_ALLOWED_MONITORS", "").strip()
+ALLOWED_MONITOR_SET = {
+    x.strip() for x in ALLOWED_MONITORS.split(",") if x.strip()
+}
+
+# Optional behavior filter (e.g. "zm_event,drinking_alert")
+ALLOWED_BEHAVIORS = os.getenv("IMOUSE_ALLOWED_BEHAVIORS", "").strip()
+ALLOWED_BEHAVIOR_SET = {
+    x.strip() for x in ALLOWED_BEHAVIORS.split(",") if x.strip()
+}
+
+# ===========================
+# UTILS
+# ===========================
+
+def log(*args):
+    print(time.strftime("%Y-%m-%d %H:%M:%S"), "|", *args, flush=True)
 
 def run_hook(eid, mid, payload):
     try:
-        p = subprocess.Popen([HOOK, str(eid), str(mid)], stdin=subprocess.PIPE)
+        p = subprocess.Popen(
+            [HOOK, str(eid), str(mid)],
+            stdin=subprocess.PIPE
+        )
         p.communicate(input=json.dumps(payload).encode("utf-8"), timeout=5)
     except Exception as e:
         log("hook error:", e)
 
 def parse_events(data):
     out = []
-    ev = data.get("events", []) or data.get("Events", []) or data.get("items", []) or []
-    if isinstance(ev, dict):
-        ev = [ev]
+    events = data.get("events") or data.get("Events") or []
+    if isinstance(events, dict):
+        events = [events]
 
-    for obj in ev:
+    for obj in events:
         eid = (
-            obj.get("eid")
+            obj.get("EventId")
             or obj.get("event_id")
-            or obj.get("eventId")
-            or obj.get("EventId")
-            or obj.get("EventID")
-            or obj.get("EventID".lower())
-            or data.get("eid")
-            or data.get("event_id")
+            or obj.get("eid")
         )
+
         mid = (
-            obj.get("mid")
+            obj.get("MonitorId")
             or obj.get("monitor_id")
-            or obj.get("monitorId")
-            or obj.get("MonitorId")
-            or obj.get("MonitorID")
-            or data.get("mid")
-            or data.get("monitor_id")
+            or obj.get("mid")
         )
-        cause = obj.get("cause") or obj.get("Cause") or data.get("cause") or data.get("Cause") or ""
-        name = obj.get("name") or obj.get("Name") or data.get("name") or data.get("Name") or ""
+
+        cause = obj.get("Cause") or obj.get("cause") or ""
+        name = obj.get("Name") or obj.get("name") or ""
 
         if eid and mid:
-            out.append({"eid": str(eid), "mid": str(mid), "cause": cause, "name": name})
+            out.append({
+                "eid": str(eid),
+                "mid": str(mid),
+                "cause": cause,
+                "name": name
+            })
+
     return out
 
-
-def try_subscriptions(ws):
-    """
-    Try a few subscription messages so we work across ES versions.
-    We won’t error if a format is unrecognized; ES will ignore it.
-    """
-    msgs = [
-        {"event":"filter","data":{"monitors":"all","tags":[],"interval":0}},
-        {"event":"filter","data":{"monitors":["all"],"tags":[]}},
-        {"event":"monitor","data":{"monitors":"all"}},
-        {"event":"monitor","monitors":["all"]},
-        {"event":"listen","data":{"monitors":["all"]}},
-    ]
-    for m in msgs:
-        ws.send(json.dumps(m))
-        if DEBUG: log("-> sent subscribe", m)
+# ===========================
+# MAIN LOOP
+# ===========================
 
 def main():
-    sent_connect_notice_at = 0
-    CONNECT_NOTICE_GAP = 600
     seen_eids = set()
     SEEN_MAX = 500
 
     while True:
         try:
             log("connecting to", WS_URL)
-            ws = create_connection(WS_URL, timeout=5, ping_interval=30, ping_timeout=10)
+            ws = create_connection(WS_URL, timeout=5)
             ws.settimeout(300)
 
-            # auth (empty creds also fine when ES auth is off)
-            ws.send(json.dumps({"event":"auth","data":{"user":"","password":""}}))
-            if DEBUG: log("-> sent auth")
+            # Authenticate (empty creds OK if auth disabled)
+            ws.send(json.dumps({
+                "event": "auth",
+                "data": {"user": "", "password": ""}
+            }))
 
-            # subscribe to all monitors
-            try_subscriptions(ws)
+            log("connected")
 
-            now = time.time()
-            if sent_connect_notice_at == 0 or (now - sent_connect_notice_at) > CONNECT_NOTICE_GAP:
-                run_hook("ws_conn", "0", {"behavior": "ws_connected", "notes": "forwarder connected"})
-                sent_connect_notice_at = now
-                log("connected; connect notice sent")
+            # Subscribe (generic subscription)
+            ws.send(json.dumps({
+                "event": "filter",
+                "data": {"monitors": "all"}
+            }))
 
             while True:
                 msg = ws.recv()
                 if not msg:
                     continue
-                if DEBUG: log("< recv:", msg[:300])
+
+                if DEBUG:
+                    log("recv:", msg[:300])
+
                 try:
                     data = json.loads(msg)
                 except Exception:
                     continue
 
-                # ignore auth replies
-                if str(data.get("event","")).lower() == "auth":
+                if str(data.get("event", "")).lower() == "auth":
                     continue
 
                 for e in parse_events(data):
-                    eid, mid = e["eid"], e["mid"]
+                    eid = e["eid"]
+                    mid = e["mid"]
+
                     if not eid or eid == "0":
                         continue
+
                     if eid in seen_eids:
                         continue
+
+                    # Monitor filter
+                    if ALLOWED_MONITOR_SET and mid not in ALLOWED_MONITOR_SET:
+                        if DEBUG:
+                            log("skip monitor", mid)
+                        continue
+
+                    behavior = "zm_event"
+
+                    # Behavior filter (optional)
+                    if ALLOWED_BEHAVIOR_SET and behavior not in ALLOWED_BEHAVIOR_SET:
+                        if DEBUG:
+                            log("skip behavior", behavior)
+                        continue
+
                     seen_eids.add(eid)
                     if len(seen_eids) > SEEN_MAX:
                         seen_eids.clear()
-                    payload = {"behavior":"zm_event","notes":e["cause"],"monitor_name":e["name"]}
+
+                    payload = {
+                        "behavior": behavior,
+                        "notes": e["cause"],
+                        "monitor_name": e["name"]
+                    }
+
                     log("forwarding event eid:", eid, "mid:", mid)
                     run_hook(eid, mid, payload)
 
